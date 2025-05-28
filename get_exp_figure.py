@@ -15,12 +15,12 @@ def center_crop(img, crop_size=256):
 
 # === USER CONFIGURATION ===
 root_dir      = '/scratch/ll5484/lillian/GM/dataset/DIV2K/valid'   # ← change to your root folder
-filter_regex  = r'DIV2K_bicubic_Base'      #DIV2K_unknown_Large DIV2K_unknown_Base     # ← change to your directory‐name regex
-#filter_regex  = r'DIV2K_bicubic_Large'
+# filter_regex  = r'DIV2K_bicubic_Base'      #DIV2K_unknown_Large DIV2K_unknown_Base     # ← change to your directory‐name regex
+filter_regex  = r'DIV2K_bicubic_Large'
 
-#epoch_filter = 'epoch1000' #use with Large or Base
-#epoch_filter = 'epoch850' #use with Large
-epoch_filter = 'epoch600' #use with Base
+# epoch_filter = 'epoch1000' #use with Large or Base
+epoch_filter = 'epoch850' #use with Large
+# epoch_filter = 'epoch600' #use with Base
 
 num_images    = 4                                                # ← how many images to pick per folder
 output_dir    = 'exp_figures'                                         # ← output directory

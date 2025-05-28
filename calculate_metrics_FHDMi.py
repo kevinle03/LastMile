@@ -22,11 +22,11 @@ filter_for = None
 if filter_for:
     test_dirs = [d for d in test_dirs if filter_for in os.path.basename(d)]
     
-filter_out = 'Base'
+filter_out = 'Large'
 if filter_out:
     test_dirs = [d for d in test_dirs if filter_out not in os.path.basename(d)]
 
-out_test_dir = './FHDMi_Large_metrics'
+out_test_dir = './FHDMi_Base_metrics'
 
 def save_metrics_to_csv(out_dir, folder_name, psnr, ssim, lpips, fid, kid_mean, kid_std, niqe):
     mean_csv_path = os.path.join(out_dir, "mean_metrics.csv")

@@ -6,9 +6,9 @@ from adjustText import adjust_text
 import numpy as np
 
 # ───────── USER CONFIGURATION ─────────
-csv_file      = './DIV2K_BB_metrics/mean_metrics.csv'
-filter_string = 'DIV2K_bicubic_Base'  # 'FHDMi_Base', 'FHDMi_Large', 'DIV2K_bicubic_Large', 'DIV2K_bicubic_Base'
-epoch         = 600
+csv_file      = './DIV2K_BL_metrics/mean_metrics.csv'
+filter_string = 'DIV2K_bicubic_Large'  # 'FHDMi_Base', 'FHDMi_Large', 'DIV2K_bicubic_Large', 'DIV2K_bicubic_Base'
+epoch         = 850
 x_column      = 'FID'
 y_column      = 'SSIM'  # we'll use 1 - SSIM
 y_transform   = lambda ssim: 1 - ssim
@@ -126,7 +126,7 @@ plt.tight_layout()
 
 # Save
 os.makedirs(output_dir, exist_ok=True)
-save_path = os.path.join(output_dir, f"{filter_string}_{x_column}_vs_1m{y_column}_colored_arrows.pdf")
+save_path = os.path.join(output_dir, f"{filter_string}_epoch{epoch}_{x_column}_vs_1m{y_column}_colored_arrows.pdf")
 plt.savefig(save_path, format='pdf', dpi=300)
 plt.close()
 
