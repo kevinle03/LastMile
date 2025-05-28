@@ -6,8 +6,9 @@ from adjustText import adjust_text
 import numpy as np
 
 # ───────── USER CONFIGURATION ─────────
-csv_file      = './DIV2K_valid_metrics_lly/mean_metrics.csv'
-filter_string = 'DIV2K_bicubic_Large'
+csv_file      = './DIV2K_BB_metrics/mean_metrics.csv'
+filter_string = 'DIV2K_bicubic_Base'  # 'FHDMi_Base', 'FHDMi_Large', 'DIV2K_bicubic_Large', 'DIV2K_bicubic_Base'
+epoch         = 600
 x_column      = 'FID'
 y_column      = 'SSIM'  # we'll use 1 - SSIM
 y_transform   = lambda ssim: 1 - ssim
@@ -21,15 +22,22 @@ df = pd.read_csv(csv_file)
 # Filter Folder names
 if filter_string is not None:
     pattern = re.compile(filter_string)
+    if 'DIV2K' in filter_string:
+        dataset = 'DIV2K'
+    elif 'FHDMi' in filter_string:
+        dataset = 'FHDMi'
+    else:
+        raise ValueError("Unknown dataset in filter_string")
+
     degradation = 'unknown' if 'unknown' in filter_string else 'bicubic'
     model = 'Large' if 'Large' in filter_string else 'Base'
 
     def keep_folder(d):
         return (
-            (pattern.search(d) and 'step_20' in d)
-            or ('HR' in d)
-            or ('LR' in d and degradation in d)
-            or (model in d and degradation in d and 'output' in d)
+            (pattern.search(d) and f'epoch{epoch}' in d and 'step_20' in d)
+            or ('HR' in d or 'target' in d)
+            or ('LR' in d and degradation in d or 'source' in d)
+            or (model in d and 'output' in d and (degradation in d or dataset == 'FHDMi'))
         )
 
     df = df[df['Folder'].apply(keep_folder)].sort_values('Folder')
@@ -51,9 +59,7 @@ highlighted = False
 coords = {}
 label_map = {}
 for label in labels:
-    if "valid_HR" in label:
-        name = "X"
-    elif "valid_LR" in label:
+    if "LR" in label or 'source' in label:
         name = "Y"
     elif "output" in label:
         name = "Z"
@@ -65,8 +71,11 @@ for label in labels:
         name = "N2X|Y"
     elif "exp4" in label:
         name = "Y2X|Z"
+    elif "exp5" in label:
+        name = "N2X|Z"
     else:
         continue
+    print(f'label={label}')
     label_map[label] = name
 
     xi = df.loc[df['Folder'] == label, x_column].values[0]
@@ -90,7 +99,8 @@ arrow_paths = {
     "Z2X|Y": "blue",
     "N2X|Y": "green",
     "Z2X|NC\n(Our)": "red",
-    "Y2X|Z": "orange"
+    "Y2X|Z": "orange",
+    "N2X|Z": "purple"
 }
 
 for to_label, color in arrow_paths.items():
@@ -102,8 +112,7 @@ for to_label, color in arrow_paths.items():
             arrowprops=dict(arrowstyle='->', linewidth=2, color=color),
             zorder=2
         )
-        # Dummy point for legend entry
-        plt.scatter([], [], color=color, label=f"Z → {to_label}", s=80)
+        plt.plot([], [], color=color, lw=2, label=f"Z → {to_label}")
 
 # Style
 plt.title("Perception–Distortion (FID vs 1 - SSIM)", fontsize=20)
