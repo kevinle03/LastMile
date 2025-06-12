@@ -5,20 +5,19 @@ import random
 from PIL import Image
 import matplotlib.pyplot as plt
 
-def center_crop(img, crop_size=256):
-    width, height = img.size
-    left   = (width - crop_size) // 2
-    top    = (height - crop_size) // 2
+def crop(img, crop_size=256):
+    left   = crop_size * 3
+    top    = crop_size * 2
     right  = left + crop_size
     bottom = top + crop_size
     return img.crop((left, top, right, bottom))
 
 # === USER CONFIGURATION ===
 root_dir      = '/scratch/ll5484/lillian/GM/dataset/FHDMi/test'   # ← change to your root folder
-#filter_regex  = r'FHDMi_Base_exp2_epoch50'   #DIV2K_unknown_Large_exp2_epoch500, DIV2K_unknown_Base_exp2_epoch650, DIV2K_bicubic_Large_exp2_epoch600           # ← change to your directory‐name regex
-#filter_regex  = r'FHDMi_Base_exp2_epoch90'
+# filter_regex  = r'FHDMi_Base_exp2_epoch50'   #DIV2K_unknown_Large_exp2_epoch500, DIV2K_unknown_Base_exp2_epoch650, DIV2K_bicubic_Large_exp2_epoch600           # ← change to your directory‐name regex
+filter_regex  = r'FHDMi_Base_exp2_epoch90'
 #filter_regex  = r'FHDMi_Large_exp2_epoch50'
-filter_regex  = r'FHDMi_Large_exp2_epoch90'
+#filter_regex  = r'FHDMi_Large_exp2_epoch90'
 num_images    = 4                                                # ← how many images to pick per folder
 output_dir    = 'step_figures'                                         # ← output directory
 os.makedirs(output_dir, exist_ok=True)                                      # ← create directory if it doesn't exist
@@ -78,7 +77,7 @@ for col, d in enumerate(valid):
     for row, img_idx in enumerate(indices):
         path = os.path.join(root_dir, d, images[d][img_idx])
         img  = Image.open(path)
-        img = center_crop(img)
+        img = crop(img)
         ax   = axes[row][col]
         ax.imshow(img)
 

@@ -15,17 +15,20 @@ def center_crop(img, crop_size=256):
 
 # === USER CONFIGURATION ===
 root_dir      = '/scratch/ll5484/lillian/GM/dataset/DIV2K/valid'   # ← change to your root folder
-# filter_regex  = r'DIV2K_bicubic_Base'      #DIV2K_unknown_Large DIV2K_unknown_Base     # ← change to your directory‐name regex
-filter_regex  = r'DIV2K_bicubic_Large'
+#filter_regex  = r'DIV2K_bicubic_Large'      #DIV2K_unknown_Large DIV2K_unknown_Base     # ← change to your directory‐name regex
+filter_regex  = r'DIV2K_bicubic_Base'
 
-# epoch_filter = 'epoch1000' #use with Large or Base
-epoch_filter = 'epoch850' #use with Large
+epoch_filter = 'epoch1000' #use with Large or Base
+#epoch_filter = 'epoch850' #use with Large
 # epoch_filter = 'epoch600' #use with Base
 
-num_images    = 4                                                # ← how many images to pick per folder
-output_dir    = 'exp_figures'                                         # ← output directory
+num_images    = 4                                                 # ← how many images to pick per folder
+output_dir    = 'exp_figures_lly'                                       # ← output directory
 os.makedirs(output_dir, exist_ok=True)                                      # ← create directory if it doesn't exist
 output_pdf    = os.path.join(output_dir, f"{filter_regex}_{epoch_filter}_exp_figure.pdf") # ← output filename
+
+output_images   = os.path.join(output_dir, f"{filter_regex}_{epoch_filter}_exp_figure") 
+os.makedirs(output_images, exist_ok=True)  
 # ===========================
 
 # compile the regex
@@ -109,9 +112,18 @@ if len(valid) < len(ordered_labels):
     raise SystemExit(f"Missing folders for labels: {missing}")
 
 # 4) choose random indices from the common range
-min_count = min(len(images[d]) for d in valid)
-indices   = sorted(random.sample(range(min_count), num_images))
+# min_count = min(len(images[d]) for d in valid)
+# indices   = sorted(random.sample(range(min_count), num_images))
 
+custom_index_pool = [
+    8 , 13, 16, 23, 24, 54, 61, 76, 84
+]
+updated_list = [x - 1 for x in custom_index_pool]
+indices = sorted(random.sample(updated_list, num_images))
+#indices = [15,23,53,60] #LARGE epoch 1000
+
+indices = [22,60,75,83] #BASE epoch 1000
+print(indices)
 # 5) build & save the grid
 nrows, ncols = num_images, len(valid)
 fig, axes   = plt.subplots(nrows, ncols,
@@ -126,6 +138,8 @@ for col, label in enumerate(ordered_labels):
     new_label = label  # already formatted in label_map
 
     for row, img_idx in enumerate(indices):
+        fname = images[d][img_idx]
+        print(f"name: {fname}")
         path = os.path.join(root_dir, d, images[d][img_idx])
         img  = Image.open(path)
         if label == "Y":
@@ -133,6 +147,11 @@ for col, label in enumerate(ordered_labels):
             #img = img.resize((256, 256), resample=Image.NEAREST)
         else:
             img = center_crop(img)
+        safe_label = label.replace('|', '-').replace('\n', '_')
+        save_name = os.path.join(output_images, f"{safe_label}_{fname}")
+        #save_name=os.path.join(output_images,f"{label}_{fname}")
+        img.save(save_name)
+        
         ax   = axes[row][col]
         ax.imshow(img)
 

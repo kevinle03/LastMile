@@ -8,7 +8,7 @@ import numpy as np
 # ───────── USER CONFIGURATION ─────────
 csv_file      = './DIV2K_BL_metrics/mean_metrics.csv'
 filter_string = 'DIV2K_bicubic_Large'  # 'FHDMi_Base', 'FHDMi_Large', 'DIV2K_bicubic_Large', 'DIV2K_bicubic_Base'
-epoch         = 850
+epoch         = 1000
 x_column      = 'FID'
 y_column      = 'SSIM'  # we'll use 1 - SSIM
 y_transform   = lambda ssim: 1 - ssim
@@ -115,7 +115,7 @@ for to_label, color in arrow_paths.items():
         plt.plot([], [], color=color, lw=2, label=f"Z → {to_label}")
 
 # Style
-plt.title("Perception–Distortion (FID vs 1 - SSIM)", fontsize=20)
+# plt.title("Perception–Distortion (FID vs 1 - SSIM)", fontsize=20)
 plt.xlabel(xlabel, fontsize=16)
 plt.ylabel(ylabel, fontsize=16)
 plt.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)

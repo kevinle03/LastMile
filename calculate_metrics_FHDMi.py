@@ -9,6 +9,7 @@ from torchmetrics.image.kid import KernelInceptionDistance as KID
 from pyiqa import create_metric
 from statistics import mean
 import random
+import glob
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
@@ -22,11 +23,12 @@ filter_for = None
 if filter_for:
     test_dirs = [d for d in test_dirs if filter_for in os.path.basename(d)]
     
-filter_out = 'Large'
+filter_out = None
 if filter_out:
     test_dirs = [d for d in test_dirs if filter_out not in os.path.basename(d)]
 
-out_test_dir = './FHDMi_Base_metrics'
+# out_test_dir = './FHDMi_Base_metrics'
+out_test_dir = './testing_metrics_code'
 
 def save_metrics_to_csv(out_dir, folder_name, psnr, ssim, lpips, fid, kid_mean, kid_std, niqe):
     mean_csv_path = os.path.join(out_dir, "mean_metrics.csv")
@@ -44,36 +46,26 @@ def calculate_metrics(lr_dirs, hr_dir, out_dir):
     niqe = create_metric('niqe', device=device, as_loss=False)
     fid = FID(normalize=True).to(device)
     kid = KID(normalize=True, subset_size=50).to(device)
+
+    hr_files = sorted(os.listdir(hr_dir))
     
-    hr_files_full = sorted(os.listdir(hr_dir))
-
-    random.seed(24)
-    indices = list(range(len(hr_files_full)))
-    random.shuffle(indices)
-
-    hr_files = sorted([hr_files_full[i] for i in indices[:100]])
+    min_lr_dir = lr_dirs[0]
+    for lr_dir in lr_dirs:
+        if len(os.listdir(lr_dir)) < len(os.listdir(min_lr_dir)):
+            min_lr_dir = lr_dir
+        
+    image_number_list = sorted([file_name.split('_')[1].split('.')[0] for file_name in os.listdir(min_lr_dir)])
 
     for lr_dir in sorted(lr_dirs):
-        lr_files_full = sorted(os.listdir(lr_dir))
-        if len(lr_files_full) == 100:
-            lr_files = lr_files_full
-        else:    
-            random.seed(24)
-            indices = list(range(len(lr_files_full)))
-            random.shuffle(indices)
-
-            lr_files = sorted([lr_files_full[i] for i in indices[:100]])
-
-        if len(lr_files) != len(hr_files):
-            print(f"Length mismatch in {lr_dir}: {len(lr_files)} vs {len(hr_files)}. Skipping to next directory.")
-            continue
         print(f"Calculating metrics for {lr_dir}...")
-        
         psnr_results, ssim_results, lpips_results, niqe_results = [], [], [], []
-        for i in range(len(lr_files)):
-            print(f"Processing {i+1}/{len(lr_files)}: {lr_files[i]}")
-            lr_file_path = os.path.join(lr_dir, lr_files[i])
-            hr_file_path = os.path.join(hr_dir, hr_files[i])
+        for idx, image_number in enumerate(image_number_list):
+            lr_file_path = glob.glob(f"{lr_dir}/*{image_number}*")[0]
+            hr_file_path = glob.glob(f"{hr_dir}/*{image_number}*")[0]
+            if not lr_file_path or not hr_file_path:
+                print(f"Skipping {image_number} due to missing files in {lr_dir} or {hr_dir}.")
+                continue
+            print(f"Processing {idx+1}/{len(image_number_list)}: {lr_file_path}")
             lr_tensor_whole = read_image(lr_file_path).unsqueeze(0).to(device)/255.0  # [B, C, H, W]; range is [0,1]; dtype=torch.float32
             hr_tensor_whole = read_image(hr_file_path).unsqueeze(0).to(device)/255.0
             if lr_tensor_whole.shape != hr_tensor_whole.shape:
@@ -115,5 +107,11 @@ def calculate_metrics(lr_dirs, hr_dir, out_dir):
 if __name__ == "__main__":
     # Calculate metrics for test set
     os.makedirs(out_test_dir, exist_ok=True)
+
+    if not test_dirs:
+        raise ValueError(f"No test directories found in {test_root_dir}.")
+    if not os.listdir(hr_test_dir):
+        raise ValueError(f"No files found in HR test directory {hr_test_dir}.")
+
     calculate_metrics(test_dirs, hr_test_dir, out_test_dir)
     print("Test metrics calculation completed.")

@@ -19,18 +19,18 @@ def get_parser():
     parser.add_argument('--pretrained_teacher_model', type=str, default='stable-diffusion-v1-5',
                     help='Path or name of the pretrained teacher model')
     parser.add_argument('--data_root', type=str, default='/scratch/ll5484/lillian/GM/dataset')
-    parser.add_argument('--dataset', type=str, default='DIV2K_bicubic_Base') #ex: FHDMi_Base, FHDMi_Large, DIV2K_bicubic_Base, DIV2K_bicubic_Large, DIV2K_unknown_Base, DIV2K_unknown_Large
-    parser.add_argument('--save_path', type=str, default='evaltb1000BB_run4')
+    parser.add_argument('--dataset', type=str, default='DIV2K_bicubic_Pulse_Base') #ex: FHDMi_Base, FHDMi_Large, DIV2K_bicubic_Base, DIV2K_bicubic_Large, DIV2K_unknown_Base, DIV2K_unknown_Large
+    parser.add_argument('--save_path', type=str, default='evaltb1000UB_run4')
     parser.add_argument('--crop_size', type=int, nargs=2, default=[256, 256])  # e.g., --crop_size 256 256
-    parser.add_argument('--sample_steps', type=int, nargs='+', default=[1],
+    parser.add_argument('--sample_steps', type=int, nargs='+', default=[20],
                         help='List of sampling steps for evaluation')# sample steps for evaluation
-    parser.add_argument('--output_folder', type=str, default='/scratch/ll5484/lillian/GM/dataset/DIV2K/valid')
+    parser.add_argument('--output_folder', type=str, default='/scratch/ll5484/lillian/GM/dataset/DIV2K/pulse')
     parser.add_argument('--experiments', type=json.loads, default=json.dumps([
-        { "tag": "exp1_z2x_condY", "source": "z", "condition": "lr", "eval_ckp": [] },
-        { "tag": "exp2_z2x_condNone", "source": "z", "condition": "null", "eval_ckp": [1000] },
-        { "tag": "exp3_noise2x_condY", "source": "noise", "condition": "lr", "eval_ckp": [] },
-        { "tag": "exp4_y2x_condNone", "source": "y", "condition": "null", "eval_ckp": [] },
-        { "tag": "exp5_noise2x_condZ", "source": "noise", "condition": "mse", "eval_ckp": [] },
+        # { "tag": "exp1_z2x_condY", "source": "z", "condition": "lr", "eval_ckp": [] },
+        # { "tag": "exp2_z2x_condNone", "source": "z", "condition": "null", "eval_ckp": [650] },
+        # { "tag": "exp3_noise2x_condY", "source": "noise", "condition": "lr", "eval_ckp": [] },
+        { "tag": "exp4_y2x_condNone", "source": "y", "condition": "null", "eval_ckp": [600] },
+        # { "tag": "exp5_noise2x_condZ", "source": "noise", "condition": "mse", "eval_ckp": [] },
     ]), help='List of experiment configurations in JSON format')
 
     return parser.parse_args()
@@ -39,6 +39,74 @@ def get_parser():
 # 2. Custom Dataset Loader
 # -------------------------------
 class PairedImageDataset(Dataset):
+    def __init__(self, root, dataset, mode):
+        model = ''
+        if 'Base' in dataset:
+            model = '*Base*'
+        elif 'Large' in dataset:
+            model = '*Large*'
+        if 'DIV2K' in dataset:
+            downsample_mode = ''
+            if 'bicubic_Pulse' in dataset:
+                downsample_mode = '*bicubic_Pulse*'
+            elif 'bicubic' in dataset:
+                downsample_mode = '*bicubic*'
+            elif 'unknown' in dataset:
+                downsample_mode = '*unknown*'
+            dataset = 'DIV2K'
+            if mode == 'test':
+                mode = 'valid'
+                # DIV2K_valid_bicubic_Pulse_Large_LR_celeba_hq_256  Z
+                # DIV2K_valid_bicubic_Pulse_Large_output_celeba_hq
+            self.y_dir = sorted(glob.glob(os.path.join(root, dataset, mode, "DIV2K_valid_bicubic_Pulse_Large_LR_celeba_hq_256")))[0]
+            self.z_dir = sorted(glob.glob(os.path.join(root, dataset, mode, "DIV2K_valid_bicubic_Pulse_Large_LR_celeba_hq_256")))[0]
+            self.x_dir = sorted(glob.glob(os.path.join(root, dataset, mode, "DIV2K_valid_bicubic_Pulse_Large_LR_celeba_hq_256")))[0]
+        elif 'FHDMi' in dataset:
+            dataset = 'FHDMi'
+            if mode == 'valid':
+                mode = 'test'
+            self.y_dir = glob.glob(os.path.join(root, dataset, mode, "*source*"))[0]
+            self.z_dir = glob.glob(os.path.join(root, dataset, mode, model+"*output*"))[0]
+            self.x_dir = glob.glob(os.path.join(root, dataset, mode, "*target*"))[0]
+        else:
+            # manually change to path of your dataset
+            self.y_dir = os.path.join(root, dataset, mode, "lr")
+            self.z_dir = os.path.join(root, dataset, mode, "mse_res")
+            self.x_dir = os.path.join(root, dataset, mode, "gt")
+            
+        self.filenames_y = sorted(os.listdir(self.y_dir))
+        self.filenames_z = sorted(os.listdir(self.z_dir))
+        self.filenames_x = sorted(os.listdir(self.x_dir))
+        if not (len(self.filenames_y) == len(self.filenames_z) == len(self.filenames_x)):
+            raise ValueError(f"Mismatch in the number of images: "
+                f"y_dir ({len(self.filenames_y)}), "
+                f"z_dir ({len(self.filenames_z)}), "
+                f"x_dir ({len(self.filenames_x)})")
+
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5])
+        ])
+
+    def __len__(self):
+        return len(self.filenames_x)
+
+    def __getitem__(self, idx):
+        y_img = Image.open(os.path.join(self.y_dir, self.filenames_y[idx])).convert("RGB")
+        z_img = Image.open(os.path.join(self.z_dir, self.filenames_z[idx])).convert("RGB")
+        x_img = Image.open(os.path.join(self.x_dir, self.filenames_x[idx])).convert("RGB")
+
+        if y_img.size != z_img.size:
+            y_img = y_img.resize(z_img.size, resample=Image.BILINEAR)
+
+        return {
+            "lr": self.transform(y_img),
+            "mse": self.transform(z_img),
+            "clean": self.transform(x_img),
+            "name": self.filenames_x[idx]
+        }
+
+class PairedImageDataset0(Dataset):
     def __init__(self, root, dataset, mode):
         model = ''
         if 'Base' in dataset:
